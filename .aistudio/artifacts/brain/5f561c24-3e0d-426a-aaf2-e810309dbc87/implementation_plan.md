@@ -1,70 +1,98 @@
-# Mulberry — Header & Tab Bar Color Accessibility Enhancement
+# Mulberry — User Profile Setup, Desk Greeting & Android Storage Enhancement
 
-Enhance background contrast, frosted surface opacity, border crispness, and typography contrast across the top app bar and bottom tab bar to achieve full WCAG AA/AAA color accessibility in both light and dark modes while maintaining Android Material 3 Expressive aesthetics.
+Integrates a seamless multi-step onboarding flow for first-time users (device folder selection followed by student profile setup), saves user profile metadata as `.profile` in JSON format at the root of the selected directory, adds a personalized `Hello, <User>` greeting on the Desk shelf, filters the library by the user's selected prof year, and enhances Android browser folder selection resilience.
 
 ### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following accessibility decisions have been confirmed:
+> The following architectural and UX choices have been confirmed:
 
-- **Confirmed Decision 1 (Background & Surface Contrast)**: Header and bottom navigation bar backgrounds will use a high-opacity frosted glass surface (`rgba(255, 255, 255, 0.94)` in light mode, `rgba(21, 18, 20, 0.94)` in dark mode) paired with crisp hairline borders (`border-neutral-300/80` and `border-neutral-700/80`) to ensure foreground text and interactive controls do not wash out over scrollable book covers.
-- **Confirmed Decision 2 (Active Tab Contrast)**: Active tabs will feature a high-contrast Material 3 filled pill with dark text (`#370024`) on soft plum (`#ffd8ec`) in light mode (contrast ratio 12.8:1), and high-contrast bright text (`#ffd8ec`) on deep plum container (`#5f0340`) in dark mode (contrast ratio 8.5:1).
-- **Confirmed Decision 3 (Inactive Elements & Labels)**: Inactive tab icons, labels, storage button text, and search input placeholders will be boosted from low-contrast grays (`neutral-400/500`) to high-contrast tones (`neutral-700` light / `neutral-300` dark) guaranteeing a minimum contrast ratio of $\ge 4.5:1$ (WCAG AA).
+- **Confirmed Decision 1 (Multi-Step Onboarding)**: First-time setup presents a cohesive two-step Material 3 Expressive sheet: Step 1 selects the device storage directory (with robust Android fallback), followed immediately by Step 2 to configure the student profile (`displayName`, `selectedProf`, `institution`).
+- **Confirmed Decision 2 (.profile JSON Persistence)**: The user profile is written to the root of the selected folder as `.profile` in JSON format following the exact specification, while syncing to local state and fallback storage.
+- **Confirmed Decision 3 (Library Prof-Year Filtering)**: The Library dynamically filters books to match the user's `selectedProf` (e.g., 1st Prof, 2nd Prof, 3rd Prof Part 1, Final Prof) while providing an accessible prof-filter toggle to switch or view all profs anytime.
+- **Confirmed Decision 4 (Desk Greeting)**: The Desk tab displays an organic, distraction-free `Hello, <displayName>` greeting header above the offline shelf, acknowledging their academic role and selected prof year.
+- **Confirmed Decision 5 (Android Directory Selection Resilience)**: Enhances folder picker logic on Android where `showDirectoryPicker` may throw platform permission or security errors, providing an immediate friendly fallback so Android mobile users are never blocked.
 
 ---
 
 ### 1. Overview & Core Concept
 
-- **What It Does**: Upgrades the visual accessibility of Mulberry's fixed navigation frame without sacrificing the tactile Material 3 Expressive feel. Eliminates translucent bleed-through issues where colorful book covers behind headers or tab bars reduce text legibility.
-- **Target Audience / Persona**: Readers who value comfortable, high-contrast readability in both bright daylight and dark environments.
-- **Key Value**: Crisp, legible navigation conforming to WCAG AA/AAA contrast standards with fluid spring motion.
+- **What It Delivers**:
+  - Step 1: Storage directory selection (native file picker on desktop/Chromium, resilient fallbacks on mobile/Android).
+  - Step 2: Student profile setup (Name, Prof Year selection, Institution).
+  - File Persistence: Writes `.profile` JSON file to the folder root:
+    ```json
+    {
+      "academicRole": "Medical Student",
+      "dailyUploadLimit": 999,
+      "displayName": "Sahabul",
+      "institution": "Medical College",
+      "lastUpdated": 1792829436579,
+      "selectedProf": "1st Prof",
+      "vipBadgeLabel": "Core Architect",
+      "vipCode": "MUL1064",
+      "vipTier": "CORE_VIP"
+    }
+    ```
+  - Desk Experience: Displays `Hello, <displayName>` greeting with subtle prof-year status above the downloaded books shelf.
+  - Library Experience: Defaults to the user's prof year, showcasing only relevant textbooks and notes for their current curriculum.
+  - Settings: Allows viewing and editing the user profile and switching prof years.
 
 ---
 
 ### 2. User Experience & Visual Design
 
-- **Header (Top Bar)**:
-  - Surface: High-contrast frosted glass with 94% opacity and 24px backdrop blur.
-  - Border: Crisp bottom border (`border-neutral-300/90` in light mode, `border-neutral-800` in dark mode).
-  - Search Bar: Boosted background contrast (`bg-neutral-100` / `bg-neutral-800`), crisp outline border, and readable placeholder (`text-neutral-600` / `text-neutral-300`).
-  - Storage Button: Solidified background with crisp border and sharp typography (`text-neutral-800` / `text-neutral-200`).
-- **Bottom Navigation Bar**:
-  - Surface: High-contrast frosted glass with 94% opacity and 24px backdrop blur.
-  - Border: Crisp top border (`border-neutral-300/90` in light mode, `border-neutral-800` in dark mode).
-  - Inactive State: High-contrast neutral tone (`text-neutral-700` light / `text-neutral-300` dark).
-  - Active State: Expressive filled pill indicator with dark text in light mode and bright text in dark mode.
-  - Fluid Animation: Preserves smooth spring layout animation on tab switch.
+- **Onboarding Modal (Multi-Step Flow)**:
+  - Step 1 (Folder): Clean prompt with device storage picker, Android compatibility guard, and instant confirmation.
+  - Step 2 (Profile): Clean Material 3 input fields for Name, Prof Year dropdown/segmented options (`1st Prof`, `2nd Prof`, `3rd Prof Part 1`, `Final Prof`), and optional Institution.
+  - Fluid spring transition between steps.
+- **Desk Tab ("Shelf")**:
+  - Clean greeting header:
+    - `Hello, Sahabul` in bold Display typography
+    - Muted unboxed metadata: `Medical Student · 1st Prof`
+  - Followed by the offline shelf grouped by book `type`.
+- **Library Tab**:
+  - Filtered to the user's `selectedProf` by default so they only see relevant books for their year.
+  - A clean segmented control allows quickly toggling between their prof year and "All Profs".
 
 ---
 
-### 3. Key Product Decisions & Trade-Offs
-
-- **Decision 1: 94% Frosted Opacity vs. 100% Opaque Solid Surface**:
-  - *Chosen Approach*: 94% frosted opacity (`rgba(255, 255, 255, 0.94)` / `rgba(21, 18, 20, 0.94)`) with backdrop blur.
-  - *Why*: Delivers strict WCAG AAA contrast compliance while preserving subtle glassmorphic depth that anchors Material 3 Expressive design.
-- **Decision 2: Boost Inactive Tab Text & Icon Contrast**:
-  - *Chosen Approach*: Move inactive labels and icons from `text-neutral-400` (which drops below 3:1 over light surfaces) to `text-neutral-700` (light) and `text-neutral-300` (dark).
-  - *Why*: Satisfies WCAG AA contrast ratio of at least 4.5:1 for small navigation text.
-
----
-
-### 4. Technical Architecture & Component Mapping
+### 3. Technical Architecture & Data Strategy
 
 ```
-┌────────────────────────────────────────────────────────┐
-│                   TopBar Component                     │
-│  • Surface: .m3-glass (94% opacity + blur)             │
-│  • Border: border-neutral-300/90 / border-neutral-800  │
-│  • Text: Brand #7b1e58 (7.4:1) / #f6b1d9 (9.2:1)      │
-│  • Storage: text-neutral-800 / border-neutral-300      │
-└────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────┐
-│               BottomNavBar Component                   │
-│  • Surface: .m3-glass (94% opacity + blur)             │
-│  • Border: border-neutral-300/90 / border-neutral-800  │
-│  • Inactive: text-neutral-700 / text-neutral-300 (AA)  │
-│  • Active Pill (Light): #ffd8ec bg + #370024 text      │
-│  • Active Pill (Dark):  #5f0340 bg + #ffd8ec text      │
-└────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    First-Time Onboarding                        │
+│                                                                 │
+│  Step 1: Folder Selection ──► Step 2: Profile Setup (Name/Prof) │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+           ┌─────────────────────┴─────────────────────┐
+           ▼                                           ▼
+┌───────────────────────────────┐           ┌────────────────────┐
+│ Selected Folder Root Storage  │           │   App State Sync   │
+│ • .profile (JSON)             │           │ • activeProfile    │
+│ • downloaded_books.json       │           │ • selectedProf     │
+│ • <id>.bin                    │           │ • displayName      │
+└───────────────────────────────┘           └─────────┬──────────┘
+                                                      │
+                       ┌──────────────────────────────┴──────────┐
+                       ▼                                         ▼
+           ┌───────────────────────┐                 ┌───────────────────────┐
+           │     Library View      │                 │       Desk View       │
+           │ • Filtered to user's  │                 │ • "Hello, <User>"     │
+           │   selectedProf year   │                 │ • Offline Shelf       │
+           └───────────────────────┘                 └───────────────────────┘
 ```
+
+- **Profile Schema & Storage**:
+  - `UserProfile`:
+    - `academicRole: string` (default: "Medical Student")
+    - `dailyUploadLimit: number` (default: 999)
+    - `displayName: string`
+    - `institution: string`
+    - `lastUpdated: number`
+    - `selectedProf: string`
+    - `vipBadgeLabel: string` (default: "Core Architect")
+    - `vipCode: string` (default: "MUL1064")
+    - `vipTier: string` (default: "CORE_VIP")
+  - Storage methods: `saveProfile(profile)` & `loadProfile()` reading/writing `.profile` at folder root.

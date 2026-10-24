@@ -5,8 +5,9 @@ import {
   DocumentRegular,
   CheckmarkRegular,
 } from '@fluentui/react-icons';
-import { DownloadedBooksStore } from '../types/catalog';
+import { UserProfile, DownloadedBooksStore } from '../types/catalog';
 import { isFileSystemAccessSupported } from '../services/storage';
+import { PersonRegular } from '@fluentui/react-icons';
 
 interface SettingsViewProps {
   folderName: string;
@@ -15,6 +16,8 @@ interface SettingsViewProps {
   onRefreshMetadata: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
+  profile: UserProfile | null;
+  onEditProfile: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -24,6 +27,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRefreshMetadata,
   isDark,
   onToggleTheme,
+  profile,
+  onEditProfile,
 }) => {
   const [copiedKey, setCopiedKey] = useState(false);
   const totalMb = store.books.reduce((acc, b) => acc + (b.sizeMb || 0), 0);
@@ -37,11 +42,53 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 pt-6 pb-28 space-y-8 select-none">
-      <div className="border-b border-neutral-200/60 dark:border-neutral-800/60 pb-3">
+      <div className="border-b border-neutral-300 dark:border-neutral-800 pb-3">
         <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
           Settings
         </h1>
       </div>
+
+      {/* Student Profile Section */}
+      <section className="space-y-4">
+        <h2 className="text-sm font-semibold tracking-wide text-neutral-600 dark:text-neutral-400">
+          Student Profile
+        </h2>
+
+        <div className="p-5 rounded-3xl m3-glass border border-neutral-300 dark:border-neutral-800 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-[#7b1e58]/10 dark:bg-[#f6b1d9]/10 flex items-center justify-center text-[#7b1e58] dark:text-[#f6b1d9] shrink-0">
+                <PersonRegular className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-neutral-500 dark:text-neutral-400">
+                  {profile?.academicRole || 'Medical Student'} · {profile?.selectedProf || '1st Prof'}
+                </p>
+                <p className="text-sm font-bold text-neutral-900 dark:text-white truncate">
+                  {profile?.displayName || 'Not Set'}
+                </p>
+                {profile?.institution && (
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 truncate mt-0.5">
+                    {profile.institution}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={onEditProfile}
+              className="px-4 py-2 rounded-full bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-xs font-semibold text-neutral-800 dark:text-neutral-200 transition-colors shrink-0 border border-neutral-300 dark:border-neutral-700"
+            >
+              Edit Profile
+            </button>
+          </div>
+
+          <div className="pt-2 border-t border-neutral-300/40 dark:border-neutral-800/40 flex items-center justify-between text-xs">
+            <span className="text-neutral-500 dark:text-neutral-400">Stored at folder root:</span>
+            <span className="font-semibold text-neutral-800 dark:text-neutral-200">.profile (JSON)</span>
+          </div>
+        </div>
+      </section>
 
       {/* Storage Section */}
       <section className="space-y-4">

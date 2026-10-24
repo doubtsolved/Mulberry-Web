@@ -6,7 +6,7 @@ import {
   DocumentRegular,
   LibraryRegular,
 } from '@fluentui/react-icons';
-import { DownloadedBookMeta } from '../types/catalog';
+import { UserProfile, DownloadedBookMeta } from '../types/catalog';
 
 interface DeskViewProps {
   books: DownloadedBookMeta[];
@@ -14,6 +14,7 @@ interface DeskViewProps {
   onDelete: (bookId: string) => void;
   onNavigateToLibrary: () => void;
   folderName: string;
+  profile?: UserProfile | null;
 }
 
 export const DeskView: React.FC<DeskViewProps> = ({
@@ -22,6 +23,7 @@ export const DeskView: React.FC<DeskViewProps> = ({
   onDelete,
   onNavigateToLibrary,
   folderName,
+  profile,
 }) => {
   // Group downloaded books by type
   const groupedByType: Record<string, DownloadedBookMeta[]> = {};
@@ -37,35 +39,77 @@ export const DeskView: React.FC<DeskViewProps> = ({
 
   if (books.length === 0) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto select-none">
-        <div className="w-16 h-16 rounded-3xl bg-[#7b1e58]/10 dark:bg-[#f6b1d9]/10 flex items-center justify-center text-[#7b1e58] dark:text-[#f6b1d9] mb-4">
-          <BookOpenRegular className="w-8 h-8" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-28 space-y-8 select-none">
+        {/* Hello Greeting Header */}
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">
+            Hello, {profile?.displayName || 'Reader'}
+          </h1>
+          {profile?.selectedProf && (
+            <div className="flex items-center gap-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+              <span>{profile.academicRole || 'Medical Student'}</span>
+              <span aria-hidden="true">·</span>
+              <span>{profile.selectedProf}</span>
+              {profile.institution && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span>{profile.institution}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
-        <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white mb-2">
-          Shelf is Empty
-        </h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6 leading-relaxed">
-          Downloaded books stored in <span className="font-semibold text-neutral-800 dark:text-neutral-200">{folderName}</span> will appear here for offline reading.
-        </p>
-        <button
-          onClick={onNavigateToLibrary}
-          className="h-11 px-6 rounded-full bg-[#7b1e58] hover:bg-[#68194a] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-md shadow-[#7b1e58]/20"
-        >
-          <LibraryRegular className="w-4 h-4" />
-          <span>Browse Library</span>
-        </button>
+
+        <div className="min-h-[45vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
+          <div className="w-16 h-16 rounded-3xl bg-[#7b1e58]/10 dark:bg-[#f6b1d9]/10 flex items-center justify-center text-[#7b1e58] dark:text-[#f6b1d9] mb-4">
+            <BookOpenRegular className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white mb-2">
+            Shelf is Empty
+          </h2>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6 leading-relaxed">
+            Downloaded books stored in <span className="font-semibold text-neutral-800 dark:text-neutral-200">{folderName}</span> will appear here for offline reading.
+          </p>
+          <button
+            onClick={onNavigateToLibrary}
+            className="h-11 px-6 rounded-full bg-[#7b1e58] hover:bg-[#68194a] text-white text-xs font-semibold flex items-center gap-2 transition-colors shadow-md shadow-[#7b1e58]/20"
+          >
+            <LibraryRegular className="w-4 h-4" />
+            <span>Browse Library</span>
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-28 space-y-10">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-28 space-y-8">
+      {/* Hello Greeting Header */}
+      <div className="space-y-1">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-neutral-900 dark:text-white">
+          Hello, {profile?.displayName || 'Reader'}
+        </h1>
+        {profile?.selectedProf && (
+          <div className="flex items-center gap-2 text-xs font-medium text-neutral-600 dark:text-neutral-400">
+            <span>{profile.academicRole || 'Medical Student'}</span>
+            <span aria-hidden="true">·</span>
+            <span>{profile.selectedProf}</span>
+            {profile.institution && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>{profile.institution}</span>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Shelf Header */}
-      <div className="flex items-baseline justify-between border-b border-neutral-200/60 dark:border-neutral-800/60 pb-3">
+      <div className="flex items-baseline justify-between border-b border-neutral-300 dark:border-neutral-800 pb-3">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-white">
+          <h2 className="text-xl font-bold tracking-tight text-neutral-900 dark:text-white">
             Shelf
-          </h1>
+          </h2>
           <span className="text-xs text-neutral-500 dark:text-neutral-400 tabular-nums">
             ({books.length} {books.length === 1 ? 'book' : 'books'})
           </span>

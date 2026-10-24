@@ -61,4 +61,16 @@ export interface DownloadedBooksStore {
   books: DownloadedBookMeta[];
 }
 
+export interface UserProfile {
+  academicRole: string;
+  dailyUploadLimit: number;
+  displayName: string;
+  institution: string;
+  lastUpdated: number;
+  selectedProf: string;
+  vipBadgeLabel: string;
+  vipCode: string;
+  vipTier: string;
+}
+
 export type ActiveTab = 'library' | 'desk' | 'settings';

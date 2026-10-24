@@ -1,4 +1,4 @@
-import { DownloadedBookMeta, DownloadedBooksStore } from '../types/catalog';
+import { DownloadedBookMeta, DownloadedBooksStore, UserProfile } from '../types/catalog';
 
 const DB_NAME = 'mulberry_storage_db';
 const DB_VERSION = 1;
@@ -66,6 +66,11 @@ export function isFileSystemAccessSupported(): boolean {
   return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
 }
 
+export function isAndroidDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
 /**
  * Initializes directory handle from IndexedDB if available.
  */
@@ -91,7 +96,7 @@ export async function initializeStorage(): Promise<{
   try {
     const fallbackMeta = await idbGet<DownloadedBooksStore>(FALLBACK_META_STORE, 'downloaded_books');
     if (fallbackMeta) {
-      currentFolderName = fallbackMeta.folderName || 'Internal Storage';
+      currentFolderName = fallbackMeta.folderName || 'Device Storage';
       return { isConfigured: true, folderName: currentFolderName, isNative: false };
     }
   } catch {
@@ -102,10 +107,11 @@ export async function initializeStorage(): Promise<{
 }
 
 /**
- * Prompts user to select a folder on their device using File System Access API.
+ * Prompts user to select a folder on their device.
+ * Gracefully handles Android limitations and falls back to persistent storage.
  */
-export async function promptSelectDeviceFolder(): Promise<{ folderName: string; isNative: boolean }> {
-  if (isFileSystemAccessSupported()) {
+export async function promptSelectDeviceFolder(forceInternal = false): Promise<{ folderName: string; isNative: boolean }> {
+  if (!forceInternal && isFileSystemAccessSupported()) {
     try {
       // @ts-expect-error File System Access API
       const dirHandle: FileSystemDirectoryHandle = await window.showDirectoryPicker({
@@ -120,16 +126,20 @@ export async function promptSelectDeviceFolder(): Promise<{ folderName: string; 
 
       return { folderName: dirHandle.name, isNative: true };
     } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') {
+      const errorName = (err as Error)?.name;
+      if (errorName === 'AbortError') {
         throw new Error('Selection cancelled');
       }
-      // If error occurs, fall back to internal storage
+      // SecurityError or NotSupportedError on Android / restrictive environments:
+      // Fall through to device storage fallback
+      console.warn('Native directory picker blocked or unsupported, initializing device storage:', err);
     }
   }
 
-  // Fallback storage initialization
-  currentFolderName = 'Mulberry Vault';
-  const defaultStore: DownloadedBooksStore = {
+  // High-performance fallback device storage
+  currentFolderName = isAndroidDevice() ? 'Android Device Storage' : 'Mulberry Device Vault';
+  const existingStore = await idbGet<DownloadedBooksStore>(FALLBACK_META_STORE, 'downloaded_books');
+  const defaultStore: DownloadedBooksStore = existingStore || {
     version: 1,
     lastSync: Date.now(),
     folderName: currentFolderName,
@@ -138,6 +148,46 @@ export async function promptSelectDeviceFolder(): Promise<{ folderName: string; 
   await idbSet(FALLBACK_META_STORE, 'downloaded_books', defaultStore);
   return { folderName: currentFolderName, isNative: false };
 }
+
+/**
+ * Saves user profile as .profile JSON file in root of folder and fallback cache.
+ */
+export async function saveUserProfile(profile: UserProfile): Promise<void> {
+  profile.lastUpdated = Date.now();
+
+  if (activeDirHandle) {
+    try {
+      const fileHandle = await activeDirHandle.getFileHandle('.profile', { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(profile, null, 2));
+      await writable.close();
+    } catch (err) {
+      console.warn('Could not write .profile to native folder:', err);
+    }
+  }
+
+  await idbSet(FALLBACK_META_STORE, 'user_profile', profile);
+}
+
+/**
+ * Reads user profile from .profile in root of folder or fallback cache.
+ */
+export async function loadUserProfile(): Promise<UserProfile | null> {
+  if (activeDirHandle) {
+    try {
+      const fileHandle = await activeDirHandle.getFileHandle('.profile');
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      return JSON.parse(text) as UserProfile;
+    } catch {
+      // Not yet created in folder
+    }
+  }
+
+  const fallback = await idbGet<UserProfile>(FALLBACK_META_STORE, 'user_profile');
+  return fallback || null;
+}
+
 
 /**
  * Ensures downloaded_books.json exists in directory root.

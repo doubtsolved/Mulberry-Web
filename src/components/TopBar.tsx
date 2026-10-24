@@ -21,9 +21,18 @@ export const TopBar: React.FC<TopBarProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full m3-glass border-b border-neutral-300 dark:border-neutral-800 transition-colors shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Zone 1: Brand wordmark */}
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xl font-bold tracking-tight text-[#7b1e58] dark:text-[#f6b1d9] select-none">
+        {/* Zone 1: Brand wordmark & App Icon */}
+        <div className="flex items-center gap-2.5 shrink-0 select-none">
+          <img
+            src="/logo.svg"
+            alt="Mulberry"
+            className="w-8 h-8 rounded-xl shrink-0 object-contain shadow-xs"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src =
+                'https://raw.githubusercontent.com/doubtsolved/Mulberry/282bbc90a25128775e338ca1d514e942b0792ef5/.aistudio/material_3_expressive_logo.svg';
+            }}
+          />
+          <span className="text-xl font-bold tracking-tight text-[#7b1e58] dark:text-[#f6b1d9]">
             Mulberry
           </span>
         </div>

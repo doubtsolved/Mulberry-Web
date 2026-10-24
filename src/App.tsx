@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ActiveTab, BookItem, CatalogData, DownloadedBookMeta, DownloadedBooksStore } from './types/catalog';
+import { ActiveTab, BookItem, CatalogData, DownloadedBookMeta, DownloadedBooksStore, UserProfile } from './types/catalog';
 import { fetchCatalog, groupBooksByType, getBookDownloadUrl } from './services/catalog';
 import {
   initializeStorage,
@@ -8,6 +8,7 @@ import {
   saveDownloadedBooksStore,
   saveBookFile,
   deleteBookFile,
+  loadUserProfile,
 } from './services/storage';
 import { TopBar } from './components/TopBar';
 import { BottomNavBar } from './components/BottomNavBar';
@@ -31,7 +32,11 @@ export default function App() {
   });
 
   const [folderName, setFolderName] = useState('');
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showFolderModal, setShowFolderModal] = useState(false);
+  const [onboardingStartStep, setOnboardingStartStep] = useState<1 | 2>(1);
+
+  const [selectedProfFilter, setSelectedProfFilter] = useState<string>('1st Prof');
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [downloadProgress, setDownloadProgress] = useState(0);
@@ -42,7 +47,7 @@ export default function App() {
   const [activeReadingBook, setActiveReadingBook] = useState<BookItem | DownloadedBookMeta | null>(null);
   const [isDark, setIsDark] = useState(false);
 
-  // Initialize storage & theme on mount
+  // Initialize storage, profile & theme on mount
   useEffect(() => {
     // Check dark mode preference
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -56,15 +61,29 @@ export default function App() {
         const storageInfo = await initializeStorage();
         if (storageInfo.isConfigured && storageInfo.folderName) {
           setFolderName(storageInfo.folderName);
-        } else {
-          // First setup prompt
-          setShowFolderModal(true);
         }
 
         const currentStore = await getDownloadedBooksStore();
         setStore(currentStore);
         if (currentStore.folderName && !storageInfo.folderName) {
           setFolderName(currentStore.folderName);
+        }
+
+        const userProf = await loadUserProfile();
+        if (userProf) {
+          setProfile(userProf);
+          if (userProf.selectedProf) {
+            setSelectedProfFilter(userProf.selectedProf);
+          }
+        }
+
+        // If storage is not configured or profile is missing, start onboarding
+        if (!storageInfo.isConfigured) {
+          setOnboardingStartStep(1);
+          setShowFolderModal(true);
+        } else if (!userProf) {
+          setOnboardingStartStep(2);
+          setShowFolderModal(true);
         }
       } catch (err) {
         console.warn('Storage init error:', err);
@@ -110,6 +129,10 @@ export default function App() {
     try {
       const currentStore = await getDownloadedBooksStore();
       setStore(currentStore);
+      const userProf = await loadUserProfile();
+      if (userProf) {
+        setProfile(userProf);
+      }
     } catch {
       // Non-blocking
     }
@@ -124,21 +147,40 @@ export default function App() {
     return map;
   }, [store.books]);
 
-  // Filter books by search query if applicable
+  // Available prof options
+  const availableProfs = useMemo(() => {
+    if (catalog?.filters?.profs && catalog.filters.profs.length > 0) {
+      return catalog.filters.profs;
+    }
+    return ['1st Prof', '2nd Prof', '3rd Prof Part 1', 'Final Prof'];
+  }, [catalog?.filters?.profs]);
+
+  // Filter books by selected prof year & search query
   const filteredBooks = useMemo(() => {
     if (!catalog?.books) return [];
-    if (!searchQuery.trim()) return catalog.books;
 
-    const q = searchQuery.toLowerCase().trim();
-    return catalog.books.filter((b) => {
-      const titleMatch = b.title?.toLowerCase().includes(q);
-      const authorMatch = b.author?.toLowerCase().includes(q);
-      const subjectMatch = b.subject?.toLowerCase().includes(q);
-      const typeMatch = b.type?.toLowerCase().includes(q);
-      const tagMatch = b.tags?.some((t) => t.toLowerCase().includes(q));
-      return titleMatch || authorMatch || subjectMatch || typeMatch || tagMatch;
-    });
-  }, [catalog?.books, searchQuery]);
+    let list = catalog.books;
+
+    // Filter by selected prof year (unless 'All' is selected)
+    if (selectedProfFilter && selectedProfFilter !== 'All') {
+      list = list.filter((b) => b.prof === selectedProfFilter || b.prof?.includes(selectedProfFilter));
+    }
+
+    // Filter by search query if user entered search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((b) => {
+        const titleMatch = b.title?.toLowerCase().includes(q);
+        const authorMatch = b.author?.toLowerCase().includes(q);
+        const subjectMatch = b.subject?.toLowerCase().includes(q);
+        const typeMatch = b.type?.toLowerCase().includes(q);
+        const tagMatch = b.tags?.some((t) => t.toLowerCase().includes(q));
+        return titleMatch || authorMatch || subjectMatch || typeMatch || tagMatch;
+      });
+    }
+
+    return list;
+  }, [catalog?.books, selectedProfFilter, searchQuery]);
 
   // Group books by `type` property
   // Any type with at least one book is shown as a section
@@ -149,6 +191,7 @@ export default function App() {
   // Download book handler
   const handleDownload = async (book: BookItem) => {
     if (!folderName) {
+      setOnboardingStartStep(1);
       setShowFolderModal(true);
       return;
     }
@@ -235,7 +278,10 @@ export default function App() {
       {/* Top Bar */}
       <TopBar
         folderName={folderName}
-        onOpenFolderModal={() => setShowFolderModal(true)}
+        onOpenFolderModal={() => {
+          setOnboardingStartStep(1);
+          setShowFolderModal(true);
+        }}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         showSearch={showSearch}
@@ -267,6 +313,9 @@ export default function App() {
                 onDownload={handleDownload}
                 onRead={(book) => setActiveReadingBook(book)}
                 searchQuery={searchQuery}
+                selectedProf={selectedProfFilter}
+                onProfChange={setSelectedProfFilter}
+                availableProfs={availableProfs}
               />
             </motion.div>
           )}
@@ -285,6 +334,7 @@ export default function App() {
                 onDelete={handleDeleteBook}
                 onNavigateToLibrary={() => setActiveTab('library')}
                 folderName={folderName}
+                profile={profile}
               />
             </motion.div>
           )}
@@ -299,11 +349,19 @@ export default function App() {
             >
               <SettingsView
                 folderName={folderName}
-                onChangeFolder={() => setShowFolderModal(true)}
+                onChangeFolder={() => {
+                  setOnboardingStartStep(1);
+                  setShowFolderModal(true);
+                }}
                 store={store}
                 onRefreshMetadata={refreshMetadata}
                 isDark={isDark}
                 onToggleTheme={handleToggleTheme}
+                profile={profile}
+                onEditProfile={() => {
+                  setOnboardingStartStep(2);
+                  setShowFolderModal(true);
+                }}
               />
             </motion.div>
           )}
@@ -317,12 +375,18 @@ export default function App() {
         shelfCount={store.books.length}
       />
 
-      {/* Directory Setup Modal */}
+      {/* Multi-Step Setup Modal */}
       <DirectorySetupModal
         isOpen={showFolderModal}
         onClose={() => setShowFolderModal(false)}
-        onConfigured={(name) => {
-          setFolderName(name);
+        startAtStep={onboardingStartStep}
+        initialProfile={profile}
+        onCompleted={(name, prof) => {
+          if (name) setFolderName(name);
+          setProfile(prof);
+          if (prof.selectedProf) {
+            setSelectedProfFilter(prof.selectedProf);
+          }
           refreshMetadata();
         }}
       />
